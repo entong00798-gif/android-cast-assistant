@@ -1,4 +1,4 @@
-# Android Cast Assistant - Liquid Glass UI (Windows PowerShell 5.1+)
+﻿# Android Cast Assistant - Liquid Glass UI (Windows PowerShell 5.1+)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
