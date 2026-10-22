@@ -4,60 +4,10 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-if (-not ('NeoGlassPanel' -as [type])) {
+if (-not ('NeoGlassBackdrop' -as [type])) {
   Add-Type -TypeDefinition @"
 using System;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
-
-public class NeoGlassPanel : Panel
-{
-    public Color SurfaceColor { get; set; }
-    public Color BorderColor { get; set; }
-    public int CornerRadius { get; set; }
-
-    public NeoGlassPanel()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
-            ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
-        BackColor = Color.Transparent;
-        SurfaceColor = Color.FromArgb(150, 37, 52, 76);
-        BorderColor = Color.FromArgb(65, 226, 237, 255);
-        CornerRadius = 18;
-    }
-
-    private GraphicsPath RoundedPath(Rectangle r)
-    {
-        int d = Math.Min(CornerRadius * 2, Math.Min(r.Width, r.Height));
-        GraphicsPath p = new GraphicsPath();
-        p.AddArc(r.Left, r.Top, d, d, 180, 90);
-        p.AddArc(r.Right - d, r.Top, d, d, 270, 90);
-        p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-        p.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
-        p.CloseFigure();
-        return p;
-    }
-
-    protected override void OnPaintBackground(PaintEventArgs e)
-    {
-        base.OnPaintBackground(e);
-        if (Width < 4 || Height < 4) return;
-
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        Rectangle bounds = new Rectangle(0, 0, Width - 1, Height - 1);
-        using (GraphicsPath path = RoundedPath(bounds))
-        using (SolidBrush fill = new SolidBrush(SurfaceColor))
-        using (Pen border = new Pen(BorderColor, 1.0f))
-        using (Pen sheen = new Pen(Color.FromArgb(28, Color.White), 1.0f))
-        {
-            e.Graphics.FillPath(fill, path);
-            e.Graphics.DrawPath(border, path);
-            e.Graphics.DrawLine(sheen, CornerRadius, 1, Width - CornerRadius, 1);
-        }
-    }
-}
 
 public static class NeoGlassBackdrop
 {
@@ -118,6 +68,41 @@ public static class NeoGlassBackdrop
 "@
 }
 
+function New-GlassCard {
+  param([int]$X, [int]$Y, [int]$Width, [int]$Height)
+  $card = New-Object Windows.Forms.Panel
+  $card.Location = [Drawing.Point]::new($X, $Y)
+  $card.Size = [Drawing.Size]::new($Width, $Height)
+  $card.BackColor = [Drawing.Color]::Transparent
+  $card.Add_Paint({
+    param($sender, $e)
+    if ($sender.Width -lt 4 -or $sender.Height -lt 4) { return }
+    $g = $e.Graphics
+    $g.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $path = [Drawing.Drawing2D.GraphicsPath]::new()
+    $d = 36
+    $path.AddArc(0, 0, $d, $d, 180, 90)
+    $path.AddArc($sender.Width - $d - 1, 0, $d, $d, 270, 90)
+    $path.AddArc($sender.Width - $d - 1, $sender.Height - $d - 1, $d, $d, 0, 90)
+    $path.AddArc(0, $sender.Height - $d - 1, $d, $d, 90, 90)
+    $path.CloseFigure()
+    $fill = [Drawing.SolidBrush]::new([Drawing.Color]::FromArgb(145, 37, 52, 76))
+    $border = [Drawing.Pen]::new([Drawing.Color]::FromArgb(65, 226, 237, 255), 1.0)
+    $sheen = [Drawing.Pen]::new([Drawing.Color]::FromArgb(28, 255, 255, 255), 1.0)
+    try {
+      $g.FillPath($fill, $path)
+      $g.DrawPath($border, $path)
+      $g.DrawLine($sheen, 18, 1, $sender.Width - 18, 1)
+    } finally {
+      $sheen.Dispose()
+      $border.Dispose()
+      $fill.Dispose()
+      $path.Dispose()
+    }
+  })
+  return $card
+}
+
 $Runtime = Join-Path $env:LOCALAPPDATA 'Neo7Cast\scrcpy'
 $Form = New-Object Windows.Forms.Form
 $Form.Text = 'Android 手机投屏助手'
@@ -170,9 +155,7 @@ $desc.ForeColor = [Drawing.Color]::FromArgb(177, 194, 220)
 $desc.BackColor = [Drawing.Color]::Transparent
 $Form.Controls.Add($desc)
 
-$statusCard = New-Object NeoGlassPanel
-$statusCard.Location = New-Object Drawing.Point(24, 110)
-$statusCard.Size = New-Object Drawing.Size(536, 58)
+$statusCard = New-GlassCard -X 24 -Y 110 -Width 536 -Height 58
 $Form.Controls.Add($statusCard)
 
 $status = New-Object Windows.Forms.Label
@@ -184,9 +167,7 @@ $status.BackColor = [Drawing.Color]::Transparent
 $status.AutoEllipsis = $true
 $statusCard.Controls.Add($status)
 
-$deviceCard = New-Object NeoGlassPanel
-$deviceCard.Location = New-Object Drawing.Point(24, 181)
-$deviceCard.Size = New-Object Drawing.Size(536, 158)
+$deviceCard = New-GlassCard -X 24 -Y 181 -Width 536 -Height 158
 $Form.Controls.Add($deviceCard)
 
 $deviceTitle = New-Object Windows.Forms.Label
@@ -318,9 +299,7 @@ $btnStart.Add_Click({
   }
 })
 
-$helpCard = New-Object NeoGlassPanel
-$helpCard.Location = New-Object Drawing.Point(24, 418)
-$helpCard.Size = New-Object Drawing.Size(536, 218)
+$helpCard = New-GlassCard -X 24 -Y 418 -Width 536 -Height 218
 $Form.Controls.Add($helpCard)
 
 $helpTitle = New-Object Windows.Forms.Label
